@@ -25,14 +25,15 @@ def parseCfg(cfg):
     block = {}
     blocks = []
 
-    for line in lines:
-        if line[0] == '[':
+    for x in lines:
+        if x[0] == "[":
             if(len(block)!=0):
                 blocks.append(block)
                 block = {}
-            block['type']=lines[1:-1]
+            block["type"]=x[1:-1].rstrip()
+
         else:
-            key,value = line.split('=')
+            key,value = x.split("=")
             block[key.rstrip()]=value.lstrip()
     blocks.append(block)
 
@@ -46,11 +47,11 @@ def createModule(blocks):
     prev_filters = 3
     output_filters = []
 
-    for x in blocks:
+    for x in blocks[1:-1]:
         module = nn.Sequential()
-
         #卷积模块
         if(x["type"]=="convolutional"):
+
             activation = x["activation"]
             try:
                 batch_normalize = int(x["batch_normalize"])
@@ -69,8 +70,8 @@ def createModule(blocks):
             else:
                 pad = 0
             #添加卷积层
-            conv =nn.Conv2d(prev_filters,filters,kernel_size,pad,bias=
-                            module.add_module("conv_{0}".format(index),conv))
+            conv =nn.Conv2d(prev_filters,filters,kernel_size,stride,pad,bias=bias)
+            module.add_module("conv_{0}".format(index),conv)
             #添加BN层
             if batch_normalize:
                 bn = nn.BatchNorm2d(filters)
@@ -82,12 +83,14 @@ def createModule(blocks):
 
         #上采样模块
         elif(x["type"]=="upsample"):
+
             stride = int(x["stride"])
             upsample = nn.Upsample(scale_factor=2,mode="nearest")
             module.add_module("upsample_{0}".format(index),upsample)
 
         #route模块
         elif(x["type"]=="route"):
+
             x["layers"] = x["layers"].split(',')
             start = int(x["layers"][0])
             try:
@@ -107,12 +110,14 @@ def createModule(blocks):
 
         #shortcut模块
         elif(x["type"]=="shortcut"):
+
             from_ = int(x["from"])
             shortcut = EmptyLayer()
             module.add_module("shortcut_{0}".format(index),shortcut)
 
         #YOLO模块
         elif(x["type"]=="yolo"):
+
             mask = x["mask"].split(",")
             mask = [int(x) for x in mask]
 
@@ -127,6 +132,8 @@ def createModule(blocks):
         module_list.append(module)
         prev_filters = filters
         output_filters.append(filters)
+        index = index + 1
+        print(module)
 if __name__ == '__main__':
     blocks = parseCfg("./yolov3.cfg")
-    print(createModule(blocks))
+    createModule(blocks)
